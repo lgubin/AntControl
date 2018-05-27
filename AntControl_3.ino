@@ -26,8 +26,8 @@ byte StatePacketBuffer[sizeof(Srh_State_Packet)];
 
 int AzCommand = 0x043C;
 int AzSpeed   = 0;
-int ElCommand = 0x043C;
-int ElSpeed   = 0x0;
+int ElCommand = 0x047C;
+int ElSpeed   = 0x0100;
 int e,a, i = 0;
 bool PPSflag;
 bool TimeSourceFlag = true;
@@ -111,34 +111,35 @@ void PacketHandler() {
           AzSpeed   = 0x0;
         } break;
       case 102: {
-          Serial.print ("FORWARD");
+          Serial.print ("Azimuth");
           AzCommand = 0x047C;
           AzSpeed = Value;
-          Serial.println (AzSpeed,HEX);
         } break;
-      case 103: {
+/*      case 103: {
           Serial.print ("BACKWARD");
           AzCommand = 0x047C;
           AzSpeed = Value;
-        } break;
+        } break;*/
       case 104: {
-          Serial.print ("UPWARD");
+          Serial.print ("Hour angle ");
           ElCommand = 0x047C;
           ElSpeed = Value;
+          Serial.println (ElSpeed);
         } break;
-      case 105: {
+/*      case 105: {
           Serial.print ("DOWN");
           ElCommand = 0x047C;
           ElSpeed = Value;
-        } break;
+        } break;*/
       case 106: {
           Serial.println ("Elevation STOP");
           ElCommand = 0x043C;
           ElSpeed   = 0x0;
         } break;
       case 200: {
-          Serial.println ("GPS requested");
+          Serial.print ("GPS requested - ");
           IPAddress WhoRequestedIP = UdpAnt.remoteIP();
+          Serial.println (ElSpeed);
           //sendGpsPacket(WhoRequestedIP);
         } break;
     }
@@ -154,12 +155,7 @@ void SendToVLT_Azimuth() {
   RTU_Azimuth.setTransmitBuffer(0, AzCommand);
   RTU_Azimuth.setTransmitBuffer(1, AzSpeed);
   result = RTU_Azimuth.writeMultipleCoils(0, 32);
-  if (result != 0){
-    //Serial.print(result);
-    //Serial.print(" a = ");
-    //Serial.println(a);
-  } 
-  //a++;
+  if (result != 0) Serial.print("RTU_Azimuth.writeMultipleCoils"); 
   delay(20);
   GetFromVLT_Azimuth();
 }
@@ -172,35 +168,29 @@ void GetFromVLT_Azimuth() {
     SrhStatePacket.AntAzState = RTU_Azimuth.getResponseBuffer(0);
     SrhStatePacket.AntAzFreeq = RTU_Azimuth.getResponseBuffer(1);
     //Serial.print(AntAzState, HEX);
-    Serial.print("Azimuth speed ");
-    Serial.println(SrhStatePacket.AntAzFreeq, HEX);
-  }
+    //Serial.print("Azimuth speed ");
+    //Serial.println(SrhStatePacket.AntAzFreeq);
+  }else SrhStatePacket.AntAzState = -3848; // If VLT is not connected or modbus is down... (~SrhStatePacket.AntAzState = -3848)
 }
 void SendToVLT_Elevation() {
   uint8_t result;
   RTU_Elev.setTransmitBuffer(0, ElCommand);
   RTU_Elev.setTransmitBuffer(1, ElSpeed);
   result = RTU_Elev.writeMultipleCoils(0, 32);
-  if (result != 0){
-    //Serial.print(result);
-    //Serial.print(" e = ");
-    //Serial.println(e); 
-  }
-  //e++;
+  if (result != 0) Serial.println("RTU_Elev.writeMultipleCoils ERROR");
   delay(20);
   GetFromVLT_Elevation();
 }
 void GetFromVLT_Elevation() {
   uint8_t result;
   result = RTU_Elev.readCoils(32, 32);
-  if (result == RTU_Elev.ku8MBSuccess)
-  {
+  if (result == RTU_Elev.ku8MBSuccess){
     //Serial.println(result);
     SrhStatePacket.AntElState = RTU_Elev.getResponseBuffer(0);
     SrhStatePacket.AntElFreeq = RTU_Elev.getResponseBuffer(1);
-    //Serial.print(AntElState, HEX);
-    //Serial.println(AntElFreeq);
-  }
+    //Serial.print(~SrhStatePacket.AntElState);
+    Serial.println(SrhStatePacket.AntElFreeq);
+  }else SrhStatePacket.AntElState = -3848; // If VLT is not connected or modbus is down... (~SrhStatePacket.AntAzState = -3848)
 }
 void setup() {
   pinMode (PPS_Pin, INPUT_PULLUP);
