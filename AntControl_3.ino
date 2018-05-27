@@ -26,8 +26,8 @@ byte StatePacketBuffer[sizeof(Srh_State_Packet)];
 
 int AzCommand = 0x043C;
 int AzSpeed   = 0;
-int ElCommand = 0x047C;
-int ElSpeed   = 0x0100;
+int ElCommand = 0x043C;
+int ElSpeed   = 0x00;
 int e,a, i = 0;
 bool PPSflag;
 bool TimeSourceFlag = true;
@@ -137,9 +137,8 @@ void PacketHandler() {
           ElSpeed   = 0x0;
         } break;
       case 200: {
-          Serial.print ("GPS requested - ");
+          Serial.println ("GPS requested - ");
           IPAddress WhoRequestedIP = UdpAnt.remoteIP();
-          Serial.println (ElSpeed);
           //sendGpsPacket(WhoRequestedIP);
         } break;
     }
@@ -189,7 +188,7 @@ void GetFromVLT_Elevation() {
     SrhStatePacket.AntElState = RTU_Elev.getResponseBuffer(0);
     SrhStatePacket.AntElFreeq = RTU_Elev.getResponseBuffer(1);
     //Serial.print(~SrhStatePacket.AntElState);
-    Serial.println(SrhStatePacket.AntElFreeq);
+    //Serial.println(SrhStatePacket.AntElFreeq);
   }else SrhStatePacket.AntElState = -3848; // If VLT is not connected or modbus is down... (~SrhStatePacket.AntAzState = -3848)
 }
 void setup() {
