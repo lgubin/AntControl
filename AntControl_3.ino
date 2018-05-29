@@ -3,11 +3,14 @@
 #include "SrhAntControl.h"
 #include <neotimer.h>
 #include <SPI.h>
+#include <SD.h>
 #include <Ethernet.h>
 #include <EthernetUdp.h>
 
 ModbusMaster RTU_Azimuth;
 ModbusMaster RTU_Elev;
+
+File ScheduleFile;
 
 Neotimer SysTimer    = Neotimer(500);
 Neotimer ModbusTimer = Neotimer(250);
@@ -35,7 +38,7 @@ uint32_t millisZero,msec=0;
 
 unsigned long SendNTPpacket(IPAddress & address) {
   if (TimeSourceFlag){
-    ntpUnixTime++;
+    //ntpUnixTime++;
     memset(packetBuffer, 0, NTP_PACKET_SIZE);
     packetBuffer[0] = 0b11100011;
     packetBuffer[1] = 0;
@@ -191,6 +194,35 @@ void GetFromVLT_Elevation() {
     //Serial.println(SrhStatePacket.AntElFreeq);
   }else SrhStatePacket.AntElState = -3848; // If VLT is not connected or modbus is down... (~SrhStatePacket.AntAzState = -3848)
 }
+String buffer;
+void getSchedule(unsigned long Ts){     
+      ScheduleFile = SD.open("S0205.DAT", FILE_READ);
+      if  (ScheduleFile) {
+        Serial.println("Openning SD OK");
+        if (ScheduleFile.available()){
+          if (ScheduleFile.find("09:50:50")){
+            buffer = ScheduleFile.readStringUntil('\n');
+            Serial.println(buffer);
+          }
+        }else Serial.println("schedule file not avaliable");
+        ScheduleFile.close();
+      }else Serial.println("error opening schedule file");
+      
+      Serial.print("I'v get at  ");
+      Serial.print((Ts  % 86400L) / 3600);
+      Serial.print(':');
+      if ( ((Ts % 3600) / 60) < 10 ) {
+        Serial.print('0');
+      }
+      Serial.print((Ts  % 3600) / 60);
+      Serial.print(':');
+      if ( (Ts % 60) < 10 ) {
+        Serial.print('0');
+      }
+      Serial.print(Ts % 60);
+      Serial.print('.');
+      Serial.println( millis() - millisZero);
+}
 void setup() {
   pinMode (PPS_Pin, INPUT_PULLUP);
   attachInterrupt (digitalPinToInterrupt (PPS_Pin), PPS_Handler, RISING);
@@ -205,16 +237,23 @@ void setup() {
   RTU_Azimuth.begin(1, Serial1); //ModBus slave ID is 1 - Azimuth, 2 - HAngle
   RTU_Azimuth.preTransmission(preTransmission);
   RTU_Azimuth.postTransmission(postTransmission);
-  SPI.begin(4); // initialize the bus for a Ethernet device on pin 4 
-  //SPI.begin(10); // initialize the bus for a SD-card device on pin 10 
+  pinMode(4, OUTPUT); //initialize the bus for a Ethernet device on pin 10
+  pinMode(10, OUTPUT);//initialize the bus for a SD-card device on pin 4
+  SWITCH_TO_Ethernet;
+  //SPI.begin(4); // initialize the bus for a Ethernet device on pin 4 
+  //SPI.begin(10); // initialize the bus for a SD-card device on pin 10
   Ethernet.begin(mac, ip);
   Serial.println(Ethernet.localIP());
   UdpNTP.begin(timePort);
   UdpAnt.begin(antPort);
+  SWITCH_TO_SDcard;
+  if (!SD.begin(4)) Serial.println("initialization failed!");
+  SWITCH_TO_Ethernet;
 }
 void loop() {
   if (PPSflag){ //PPS handler. To get miliseconds use: msec = millis() - millisZero;
     PPSflag = false;
+    getSchedule(ntpUnixTime);
 /*      msec = millis() - millisZero;
       Serial.print("PPS ");
       Serial.println(msec);*/
@@ -231,6 +270,7 @@ void loop() {
     }
    if(NTPTimer.repeat()){ //"Calling this periodically each 1 second"
       SendNTPpacket(TimeServer);
+      getSchedule(ntpUnixTime);
     }
   PacketHandler();  
    

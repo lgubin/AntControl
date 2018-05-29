@@ -8,6 +8,10 @@
 
 // Modbus timeout [milliseconds]
 //static const uint16_t ku16MBResponseTimeout          = 100; ///< Modbus timeout [milliseconds]
+#define SWITCH_TO_Ethernet digitalWrite(4,HIGH); digitalWrite(10,LOW)
+#define SWITCH_TO_SDcard digitalWrite(10,HIGH); digitalWrite(4,LOW)
+#define ALL_OFF digitalWrite(10,HIGH); digitalWrite(4,HIGH)
+
      
 const byte PPS_Pin = 2;
 static const unsigned int timePort = 8888;      // 
